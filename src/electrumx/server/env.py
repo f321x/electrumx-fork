@@ -11,6 +11,7 @@
 import re
 from ipaddress import IPv4Address, IPv6Address
 from typing import Type
+import os.path
 
 from aiorpcx import Service, ServicePart
 from electrumx.lib.coins import Coin
@@ -30,7 +31,7 @@ class Env(EnvBase):
     # Peer discovery
     PD_OFF, PD_SELF, PD_ON = ('OFF', 'SELF', 'ON')
     SSL_PROTOCOLS = {'ssl', 'wss'}
-    KNOWN_PROTOCOLS = {'ssl', 'tcp', 'ws', 'wss', 'rpc'}
+    KNOWN_PROTOCOLS = {'ssl', 'tcp', 'ws', 'wss', 'rpc', 'bolt8'}
 
     coin: Type[Coin]
 
@@ -101,6 +102,11 @@ class Env(EnvBase):
         if {service.protocol for service in self.services}.intersection(self.SSL_PROTOCOLS):
             self.ssl_certfile = self.required('SSL_CERTFILE')
             self.ssl_keyfile = self.required('SSL_KEYFILE')
+        if any([service.protocol == 'bolt8' for service in self.services]):
+            self.bolt8_keyfile = self.default(
+                'BOLT8_KEYFILE',
+                os.path.join(self.db_dir, 'bolt8_keyfile')
+            )
         self.report_services = self.services_to_report()
 
     def sane_max_sessions(self):

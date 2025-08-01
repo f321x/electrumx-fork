@@ -18,7 +18,7 @@ import time
 from collections import defaultdict
 from functools import partial
 from ipaddress import IPv4Address, IPv6Address, IPv4Network, IPv6Network
-from typing import Optional, TYPE_CHECKING, Sequence
+from typing import Optional, TYPE_CHECKING, Sequence, Tuple, Callable
 
 import attr
 from aiorpcx import (Event, JSONRPCAutoDetect, JSONRPCConnection,
@@ -174,6 +174,33 @@ class SessionManager:
             self._sslc.load_cert_chain(self.env.ssl_certfile, keyfile=self.env.ssl_keyfile)
         return self._sslc
 
+    def _get_bolt8_keys(self, path: str) -> Tuple[bytes, bytes]:
+        import electrum_ecc as ecc
+        keyfile_path = os.path.join(path)
+        if os.path.exists(keyfile_path):
+            with open(keyfile_path, 'r') as f:
+                s = f.read()
+            privkey = bytes.fromhex(s)
+        else:
+            self.logger.info(f'{self.env.bolt8_keyfile=} not found, creating new random identity')
+            privkey = os.urandom(32)
+            with open(keyfile_path, 'w') as f:
+                f.write(privkey.hex())
+            assert os.path.exists(keyfile_path)
+        pubkey = ecc.ECPrivkey(privkey).get_public_key_bytes()
+        return privkey, pubkey
+
+    def _get_bolt8_server(self) -> Callable[..., asyncio.Server]:
+        from electrum_lntransport import create_bolt8_server
+        keys = self._get_bolt8_keys(self.env.bolt8_keyfile)
+        self.bolt8_privkey, self.bolt8_pubkey = keys
+        self.logger.info(f'bolt8 pubkey: "{self.bolt8_pubkey.hex()}"')
+        return partial(
+            create_bolt8_server,
+            prologue=b'electrum',
+            privkey=self.bolt8_privkey
+        )
+
     async def _start_servers(self, services):
         for service in services:
             kind = service.protocol.upper()
@@ -191,6 +218,9 @@ class SessionManager:
                 if service.protocol in ('ws', 'wss'):
                     # FIXME also add padding to msgs in websocket sessions
                     serve = serve_ws
+                elif service.protocol == 'bolt8':
+                    # FIXME also add padding to msgs in bolt8 sessions
+                    serve = self._get_bolt8_server()
                 else:
                     serve = partial(serve_rs, transport=PaddedRSTransport)
             # FIXME: pass the service not the kind
@@ -204,8 +234,12 @@ class SessionManager:
             )
             host = None if service.host == 'all_interfaces' else str(service.host)
             try:
-                self.servers[service] = await serve(session_factory, host,
-                                                    service.port, ssl=sslc)
+                self.servers[service] = await serve(
+                    session_factory=session_factory,
+                    host=host,
+                    port=service.port,
+                    ssl=sslc,
+                )
             except OSError as e:    # don't suppress CancelledError
                 self.logger.error(f'{kind} server failed to listen on {service.address}: {e}')
             else:
