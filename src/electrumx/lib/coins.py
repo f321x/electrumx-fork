@@ -434,6 +434,18 @@ class BitcoinSignet(BitcoinTestnet):
     RPC_PORT = 38332
 
 
+class BitcoinMutinynet(BitcoinTestnet):
+    # custom signet https://github.com/MutinyWallet/mutiny-net/
+    NAME = "Bitcoin"
+    NET = "mutinynet"
+    GENESIS_HASH = ('00000008819873e925422c1ff0f99f7cc'
+                    '9bbb232af63a077a480a3633bee1ef6')
+    PEERS = []
+    TX_COUNT = 1
+    TX_COUNT_HEIGHT = 1
+    RPC_PORT = 38332
+
+
 class BitcoinTestnet4(BitcoinTestnet):
     NAME = "Bitcoin"
     NET = "testnet4"
