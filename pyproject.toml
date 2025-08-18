@@ -17,6 +17,7 @@ dependencies = [
     "attrs",  # TODO try to use stdlib dataclasses instead
     "plyvel",
     "aiohttp>=3.3,<4",
+    "electrum-lntransport @ git+https://github.com/f321x/lntransport-testing.git@lnsession_as_subclass"
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
