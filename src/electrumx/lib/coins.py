@@ -440,7 +440,10 @@ class BitcoinMutinynet(BitcoinTestnet):
     NET = "mutinynet"
     GENESIS_HASH = ('00000008819873e925422c1ff0f99f7cc'
                     '9bbb232af63a077a480a3633bee1ef6')
-    PEERS = []
+    PEERS = [
+        'electrum.mutinynet.com t50001',  # doesn't seem to serve server.features
+        '5.9.83.108 s51234',
+    ]
     TX_COUNT = 1
     TX_COUNT_HEIGHT = 1
     RPC_PORT = 38332
